@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OIT Unified Dashboard</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script type="module">
+import { initializeApp, getApps, deleteApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getDatabase, ref, onValue, update, remove, set } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+window.FirebaseSDK = { initializeApp, getApps, deleteApp, getDatabase, ref, onValue, update, remove, set };
+</script>
+
+<style>
+:root {
+  --bg:#f4f7fb;
+  --bg-soft:#ffffff;
+  --sidebar:#ffffff;
+  --card:#ffffff;
+  --text:#111827;
+  --muted:#6b7280;
+  --line:#e5e7eb;
+  --primary:#6d5efc;
+  --primary2:#8b7cff;
+  --green:#10b981;
+  --danger:#ef4444;
+  --shadow:0 10px 35px rgba(0,0,0,0.08);
+}
+
+body.dark {
+  --bg:#0f172a;
+  --bg-soft:#111827;
+  --sidebar:#111827;
+  --card:#182131;
+  --text:#f9fafb;
+  --muted:#94a3b8;
+  --line:rgba(255,255,255,0.08);
+  --primary:#7c6cff;
+  --primary2:#5d7dff;
+  --shadow:0 10px 40px rgba(0,0,0,0.35);
+}
+
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  display:flex;
+  height:100vh;
+  overflow:hidden;
+  transition:0.25s;
+}
+
+.sidebar{
+  width:270px;
+  background:var(--sidebar);
+  border-right:1px solid var(--line);
+  display:flex;
+  flex-direction:column;
+  padding:22px 18px;
+}
+
+.logo{
+  font-size:26px;
+  font-weight:700;
+  font-family:'Orbitron',sans-serif;
+  margin-bottom:28px;
+}
+
+.logo span{
+  color:var(--primary);
+}
+
+.nav-menu{
+  list-style:none;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  flex-grow:1;
+}
+
+.nav-menu li{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px 16px;
+  border-radius:14px;
+  cursor:pointer;
+  color:var(--muted);
+  transition:0.2s;
+}
+
+.nav-menu li.active,
+.nav-menu li:hover{
+  background:linear-gradient(135deg,var(--primary),var(--primary2));
+  color:white;
+  box-shadow:0 8px 20px rgba(109,94,252,0.25);
+}
+
+.sidebar-footer{
+  padding-top:16px;
+}
+
+#btnConnect{
+  width:100%;
+  border:none;
+  border-radius:14px;
+  padding:14px;
+  background:linear-gradient(135deg,var(--primary),var(--primary2));
+  color:white;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.content{
+  flex:1;
+  overflow-y:auto;
+  padding:28px;
+}
+
+.page{
+  display:none;
+}
+
+.page.active{
+  display:block;
+}
+
+.page-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:24px;
+}
+
+.page-header h1{
+  font-size:28px;
+  margin-bottom:6px;
+}
+
+.page-header p{
+  color:var(--muted);
+}
+
+.badges{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.theme-toggle{
+  width:44px;
+  height:44px;
+  border-radius:14px;
+  border:none;
+  background:var(--card);
+  border:1px solid var(--line);
+  color:var(--text);
+  cursor:pointer;
+  box-shadow:var(--shadow);
+}
+
+.badge{
+  background:var(--card);
+  border:1px solid var(--line);
+  padding:10px 14px;
+  border-radius:999px;
+  color:var(--muted);
+  font-size:12px;
+}
+
+.badge.on{
+  color:var(--green);
+}
+
+.water-status{
+  background:linear-gradient(135deg,var(--primary),var(--primary2));
+  color:white;
+  border-radius:24px;
+  padding:22px;
+  margin-bottom:22px;
+  font-weight:700;
+  box-shadow:var(--shadow);
+}
+
+.sensor-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:20px;
+  margin-bottom:22px;
+}
+
+.card{
+  background:var(--card);
+  border-radius:24px;
+  padding:22px;
+  border:1px solid var(--line);
+  box-shadow:var(--shadow);
+}
+
+.card-title{
+  color:var(--muted);
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:1px;
+  margin-bottom:14px;
+}
+
+.sensor-value{
+  font-size:42px;
+  font-weight:700;
+  font-family:'Orbitron',sans-serif;
+  margin-bottom:14px;
+  color:var(--primary);
+}
+
+.graph-area{
+  height:100px;
+  background:rgba(109,94,252,0.05);
+  border-radius:16px;
+  padding:8px;
+}
+
+.bottom-grid{
+  display:grid;
+  grid-template-columns:1fr 360px;
+  gap:20px;
+}
+
+.control-grid{
+  display:grid;
+  gap:14px;
+}
+
+.control-item{
+  background:var(--bg-soft);
+  border-radius:18px;
+  border:1px solid var(--line);
+  padding:18px;
+}
+
+.toggle-btn{
+  border:none;
+  border-radius:12px;
+  padding:10px 18px;
+  background:#e5e7eb;
+  color:#111827;
+  cursor:pointer;
+  font-weight:600;
+}
+
+body.dark .toggle-btn{
+  background:#263244;
+  color:white;
+}
+
+.toggle-btn.on{
+  background:linear-gradient(135deg,var(--green),#34d399);
+  color:white;
+}
+
+.terminal{
+  height:320px;
+  overflow-y:auto;
+  border-radius:18px;
+  background:#0b1220;
+  color:#22c55e;
+  padding:18px;
+  font-family:monospace;
+  line-height:1.7;
+}
+
+input,
+select{
+  width:100%;
+  padding:14px;
+  margin-bottom:14px;
+  border-radius:16px;
+  border:1px solid var(--line);
+  background:var(--bg-soft);
+  color:var(--text);
+}
+
+.btn{
+  width:100%;
+  border:none;
+  border-radius:16px;
+  padding:14px;
+  background:linear-gradient(135deg,var(--primary),var(--primary2));
+  color:white;
+  font-weight:700;
+  cursor:pointer;
+}
+
+input[type=range]{
+  accent-color:var(--primary);
+}
+
+@media(max-width:1000px){
+  .bottom-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+@media(max-width:760px){
+  body{
+    flex-direction:column;
+    overflow:auto;
+    height:auto;
+  }
+
+  .sidebar{
+    width:100%;
+  }
+
+  .content{
+    padding:20px;
+  }
+
+  .page-header{
+    flex-direction:column;
+    align-items:flex-start;
+    gap:14px;
+  }
+}
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="logo">OIT.<span>Unified</span></div>
+
+  <ul class="nav-menu">
+    <li class="active" data-page="dashboard"><i class="fas fa-chart-line"></i> Dashboard</li>
+    <li data-page="parameters"><i class="fas fa-sliders"></i> Parameters</li>
+    <li data-page="database"><i class="fas fa-database"></i> Database</li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <button id="btnConnect"><i class="fab fa-bluetooth-b"></i> Connect BLE</button>
+  </div>
+</nav>
+
+<main class="content">
+
+<section class="page active" id="page-dashboard">
+
+<div class="page-header">
+  <div>
+    <h1>OIT Water Quality Dashboard</h1>
+    <p>Realtime IoT Monitoring Platform</p>
+  </div>
+
+  <div class="badges">
+    <button id="themeToggle" class="theme-toggle">
+      <i class="fas fa-moon"></i>
+    </button>
+    <div class="badge" id="badgeBLE">BLE OFFLINE</div>
+    <div class="badge" id="badgeDB">DB OFFLINE</div>
+  </div>
+</div>
+
+<div class="water-status" id="waterStatus">
+  Waiting sensor data...
+</div>
+
+<div class="sensor-grid" id="sensorContainer"></div>
+
+<div class="bottom-grid">
+
+<div class="card">
+  <div class="card-title">Device Controls</div>
+  <div class="control-grid" id="controlContainer"></div>
+</div>
+
+<div class="card">
+  <div class="card-title">System Logs</div>
+  <div class="terminal" id="termLog"></div>
+</div>
+
+</div>
+
+</section>
+
+<section class="page" id="page-parameters">
+
+<div class="page-header">
+  <div>
+    <h1>Parameter Builder</h1>
+    <p>Create Dynamic Widgets</p>
+  </div>
+</div>
+
+<div class="card" style="max-width:600px">
+
+<input id="pName" placeholder="sensor_name">
+
+<select id="pType">
+  <option value="sensor">Sensor</option>
+  <option value="switch">Switch</option>
+  <option value="dimmer">Dimmer</option>
+</select>
+
+<input id="pUnit" placeholder="Unit °C ppm %">
+<input id="pMax" placeholder="Maximum Value">
+
+<button class="btn" id="btnSave">Save Parameter</button>
+
+</div>
+
+</section>
+
+<section class="page" id="page-database">
+
+<div class="page-header">
+  <div>
+    <h1>Firebase Configuration</h1>
+    <p>Realtime Cloud Sync</p>
+  </div>
+</div>
+
+<div class="card" style="max-width:600px">
+
+<input id="fbApi" placeholder="Firebase API Key">
+<input id="fbUrl" placeholder="Database URL">
+<input id="fbPath" value="iot/water_quality">
+
+<button class="btn" id="btnDB">Connect Database</button>
+
+</div>
+
+</section>
+
+</main>
+
+<script>
+
+const state = {
+  db: null,
+  path: 'iot/water_quality',
+  unsubscribe: null,
+  currentData: {},
+  historyData: {},
+  bleDevice: null,
+  bleTX: null,
+  bleRX: null,
+  bleConnected: false,
+  bleBuffer: ''
+};
+
+const UART_SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const UART_RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+const UART_TX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+
+const $ = (id) => document.getElementById(id);
+
+function logTerm(msg) {
+  const time = new Date().toLocaleTimeString();
+  $('termLog').innerHTML += `<div>[${time}] ${msg}</div>`;
+  $('termLog').scrollTop = $('termLog').scrollHeight;
+}
+
+function formatName(str) {
+  return str.replace(/_/g, ' ').toUpperCase();
+}
+
+// NAVIGATION
+
+document.querySelectorAll('.nav-menu li').forEach(li => {
+  li.onclick = () => {
+    document.querySelectorAll('.nav-menu li').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+
+    li.classList.add('active');
+    $('page-' + li.dataset.page).classList.add('active');
+  };
+});
+
+// STATUS
+
+function updateStatus() {
+
+  $('badgeBLE').className = state.bleConnected ? 'badge on' : 'badge';
+  $('badgeBLE').innerText = state.bleConnected ? 'BLE ONLINE' : 'BLE OFFLINE';
+
+  $('badgeDB').className = state.db ? 'badge on' : 'badge';
+  $('badgeDB').innerText = state.db ? 'DB CONNECTED' : 'DB OFFLINE';
+}
+
+// FIREBASE
+
+$('btnDB').onclick = async () => {
+
+  const sdk = window.FirebaseSDK;
+
+  try {
+
+    const apiKey = $('fbApi').value.trim();
+    const dbUrl = $('fbUrl').value.trim();
+    const path = $('fbPath').value.trim();
+
+    if(!apiKey || !dbUrl) {
+      alert('Complete Firebase config');
+      return;
+    }
+
+    const config = {
+      apiKey,
+      databaseURL: dbUrl,
+      projectId: dbUrl.split('//')[1]?.split('.')[0]
+    };
+
+    if(sdk.getApps().length > 0)
+      await sdk.deleteApp(sdk.getApps()[0]);
+
+    const app = sdk.initializeApp(config);
+
+    state.db = sdk.getDatabase(app);
+    state.path = path;
+
+    localStorage.setItem('oit_config', JSON.stringify({apiKey, dbUrl, path}));
+
+    sdk.onValue(sdk.ref(state.db, path), (snap) => {
+      state.currentData = snap.val() || {};
+      renderDashboard();
+    });
+
+    updateStatus();
+    logTerm('Firebase Connected');
+
+  } catch(err) {
+    logTerm('DB Error: ' + err.message);
+  }
+};
+
+// BLE
+
+$('btnConnect').onclick = connectBLE;
+
+async function connectBLE() {
+
+  try {
+
+    if(state.bleConnected && state.bleDevice) {
+      state.bleDevice.gatt.disconnect();
+      return;
+    }
+
+    state.bleDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: 'BBC micro:bit' }],
+      optionalServices: [UART_SERVICE]
+    });
+
+    const server = await state.bleDevice.gatt.connect();
+    const service = await server.getPrimaryService(UART_SERVICE);
+
+    state.bleTX = await service.getCharacteristic(UART_RX);
+    state.bleRX = await service.getCharacteristic(UART_TX);
+
+    await state.bleTX.startNotifications();
+
+    state.bleTX.addEventListener('characteristicvaluechanged', handleBLE);
+
+    state.bleConnected = true;
+
+    updateStatus();
+    logTerm('BLE Connected');
+
+  } catch(err) {
+    logTerm('BLE Error: ' + err.message);
+  }
+}
+
+function handleBLE(e) {
+
+  const decoder = new TextDecoder();
+
+  state.bleBuffer += decoder.decode(e.target.value);
+
+  const lines = state.bleBuffer.split('\n');
+
+  state.bleBuffer = lines.pop();
+
+  lines.forEach(line => {
+
+    const txt = line.trim();
+
+    if(txt)
+      processIncoming(txt);
+  });
+}
+
+async function processIncoming(txt) {
+
+  logTerm('RX < ' + txt);
+
+  if(!txt.includes(':')) return;
+
+  const parts = txt.split(':');
+
+  let key = parts[0]
+    .trim()
+    .replace(/\s+/g, '_')
+    .toLowerCase();
+
+  const val = parseFloat(parts[1]);
+
+  if(isNaN(val)) return;
+
+  let type = 'sensor';
+
+  if(key.includes('pump') || key.includes('lamp')) type = 'switch';
+  if(key.includes('fan') || key.includes('motor')) type = 'dimmer';
+
+  if(state.db) {
+
+    const sdk = window.FirebaseSDK;
+
+    if(state.currentData[key]) {
+      await sdk.update(sdk.ref(state.db, `${state.path}/${key}`), {
+        value: val
+      });
+    } else {
+      await sdk.set(sdk.ref(state.db, `${state.path}/${key}`), {
+        tipe: type,
+        value: val,
+        satuan: key === 'tds' ? 'ppm' : '',
+        batas_atas: 100
+      });
+    }
+  }
+
+  updateWaterStatus();
+}
+
+function renderDashboard() {
+
+  const sensorContainer = $('sensorContainer');
+  const controlContainer = $('controlContainer');
+
+  sensorContainer.innerHTML = '';
+  controlContainer.innerHTML = '';
+
+  Object.keys(state.currentData).forEach(key => {
+
+    const item = state.currentData[key];
+
+    if(!state.historyData[key])
+      state.historyData[key] = [];
+
+    state.historyData[key].push(item.value);
+
+    if(state.historyData[key].length > 30)
+      state.historyData[key].shift();
+
+    if(item.tipe === 'sensor') {
+
+      const html = `
+      <div class="card">
+        <div class="card-title">${formatName(key)}</div>
+        <div class="sensor-value">
+          ${item.value}
+          <span style="font-size:14px">${item.satuan || ''}</span>
+        </div>
+        <div class="graph-area">
+          <canvas id="c-${key}"></canvas>
+        </div>
+      </div>
+      `;
+
+      sensorContainer.insertAdjacentHTML('beforeend', html);
+
+      drawChart(key);
+    }
+
+    if(item.tipe === 'switch') {
+
+      const on = item.value == 1;
+
+      const html = `
+      <div class="control-item">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>${formatName(key)}</div>
+          <button class="toggle-btn ${on ? 'on':''}" onclick="toggleSwitch('${key}', ${on ? 0 : 1})">
+            ${on ? 'ON' : 'OFF'}
+          </button>
+        </div>
+      </div>
+      `;
+
+      controlContainer.insertAdjacentHTML('beforeend', html);
+    }
+
+    if(item.tipe === 'dimmer') {
+
+      const html = `
+      <div class="control-item">
+        <div style="margin-bottom:10px">${formatName(key)} : ${item.value}</div>
+        <input type="range" min="0" max="1024" value="${item.value}" onchange="changeDimmer('${key}', this.value)">
+      </div>
+      `;
+
+      controlContainer.insertAdjacentHTML('beforeend', html);
+    }
+
+  });
+
+  updateWaterStatus();
+}
+
+function drawChart(key) {
+
+  const canvas = $('c-' + key);
+
+  if(!canvas) return;
+
+  new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: state.historyData[key].map((_,i)=>i),
+      datasets: [{
+        data: state.historyData[key],
+        borderColor: '#3b82f6',
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display:false } },
+      scales: {
+        x: { display:false },
+        y: { ticks:{ color:'white' } }
+      }
+    }
+  });
+}
+
+async function sendToMicrobit(key, value) {
+
+  if(!state.bleRX) return;
+
+  const payload = `${key},${value}\n`;
+
+  await state.bleRX.writeValue(new TextEncoder().encode(payload));
+
+  logTerm('TX > ' + payload);
+}
+
+window.toggleSwitch = async (key, value) => {
+
+  const sdk = window.FirebaseSDK;
+
+  await sdk.update(sdk.ref(state.db, `${state.path}/${key}`), {
+    value
+  });
+
+  sendToMicrobit(key, value);
+};
+
+window.changeDimmer = async (key, value) => {
+
+  const sdk = window.FirebaseSDK;
+
+  await sdk.update(sdk.ref(state.db, `${state.path}/${key}`), {
+    value: parseInt(value)
+  });
+
+  sendToMicrobit(key, value);
+};
+
+function updateWaterStatus() {
+
+  const tds = state.currentData.tds?.value || 0;
+  const ph = state.currentData.ph?.value || 0;
+
+  const el = $('waterStatus');
+
+  if(tds === 0 && ph === 0) {
+    el.innerHTML = 'Waiting Sensor Data';
+    el.style.background = '#1e2538';
+    return;
+  }
+
+  if(tds < 300 && ph >= 6.5 && ph <= 8.5) {
+    el.innerHTML = '🟢 WATER QUALITY GOOD';
+    el.style.background = 'rgba(16,185,129,0.2)';
+    return;
+  }
+
+  if(tds < 600) {
+    el.innerHTML = '🟠 WATER QUALITY WARNING';
+    el.style.background = 'rgba(245,158,11,0.2)';
+    return;
+  }
+
+  el.innerHTML = '🔴 WATER QUALITY DANGEROUS';
+  el.style.background = 'rgba(239,68,68,0.2)';
+}
+
+// PARAMETER BUILDER
+
+$('btnSave').onclick = async () => {
+
+  if(!state.db) {
+    alert('Connect database first');
+    return;
+  }
+
+  const key = $('pName').value
+    .trim()
+    .replace(/\s+/g, '_')
+    .toLowerCase();
+
+  if(!key) return;
+
+  const payload = {
+    tipe: $('pType').value,
+    satuan: $('pUnit').value,
+    batas_atas: parseInt($('pMax').value) || 100,
+    value: 0
+  };
+
+  const sdk = window.FirebaseSDK;
+
+  await sdk.set(sdk.ref(state.db, `${state.path}/${key}`), payload);
+
+  logTerm('Parameter Saved: ' + key);
+};
+
+// INIT
+
+// THEME SYSTEM
+
+const savedTheme = localStorage.getItem('oit_theme') || 'light';
+
+if(savedTheme === 'dark') {
+  document.body.classList.add('dark');
+}
+
+$('themeToggle').onclick = () => {
+
+  document.body.classList.toggle('dark');
+
+  const isDark = document.body.classList.contains('dark');
+
+  $('themeToggle').innerHTML = isDark
+    ? '<i class="fas fa-sun"></i>'
+    : '<i class="fas fa-moon"></i>';
+
+  localStorage.setItem('oit_theme', isDark ? 'dark' : 'light');
+};
+
+window.onload = () => {
+
+  const saved = JSON.parse(localStorage.getItem('oit_config') || '{}');
+
+  if(saved.apiKey) {
+    $('fbApi').value = saved.apiKey;
+    $('fbUrl').value = saved.dbUrl;
+    $('fbPath').value = saved.path;
+  }
+
+  logTerm('System Ready');
+};
+
+</script>
+
+</body>
+</html>
